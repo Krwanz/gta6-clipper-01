@@ -11,7 +11,7 @@
 //
 // It never removes the output directory itself, and it needs no network.
 
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const botDir = process.env.MAKEFUN_BOT_DIR ?? '/bot';
@@ -25,6 +25,21 @@ try {
   copyFileSync(source, target);
 } catch (error) {
   console.error(`Could not copy VIDEO.json from ${source}: ${(error as Error).message}`);
+  process.exit(1);
+}
+
+// Fail loudly on a VIDEO.json the gate cannot read, instead of handing the
+// grader a file that only fails later: it must parse as JSON and carry the
+// video's address as a string under `url`.
+let video;
+try {
+  video = JSON.parse(readFileSync(target, 'utf8'));
+} catch (error) {
+  console.error(`Copied VIDEO.json does not parse as JSON: ${(error as Error).message}`);
+  process.exit(1);
+}
+if (!video || typeof video.url !== 'string' || video.url.length === 0) {
+  console.error('Copied VIDEO.json has no usable `url` string');
   process.exit(1);
 }
 
